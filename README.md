@@ -1,28 +1,26 @@
-# Inspectra MVP - Setup, Environment, and Sample Queries
+# Inspectra MVP
 
-Inspectra is an MVP for automated surface-defect inspection. It provides a
-deployed web application where users can log in, upload inspection images, run a
-VLM defect check, and view user-owned reports.
+Inspectra is an MVP for surface-defect inspection with a robot/camera capture
+flow, VLM defect recognition, and user-owned inspection reports.
 
-Production URLs:
+## Gate 2 Deliverables
 
-- Web UI: https://c2-app-089-production.up.railway.app
-- API: https://inspectra-api-production.up.railway.app
-- API health: https://inspectra-api-production.up.railway.app/api/health
-
-Demo accounts:
-
-- Admin: `admin@inspectra.ai` / `admin123`
-- Inspector: `inspector@inspectra.ai` / `inspect123`
-- Operator: `operator@inspectra.ai` / `operator123`
+- MVP demo video evidence: `MVP_DEMO.md`
+- Architecture diagram and data flow: `ARCHITECTURE_DIAGRAM.md`
+- Repository PR evidence: `PR_EVIDENCE.md`
+- Setup instructions, environment variables, and sample queries: this file
+- Evaluation evidence with at least 5 manual test cases: `EVAL_EVIDENCES.md`
 
 ## Product Scope
 
-- Surface inspection images are processed by a VLM.
-- Reports are persisted and associated with the logged-in user.
-- Admin users can inspect all reports.
-- Normal users only see their own uploaded reports.
-- Camera input is used for inspection capture only, not robot navigation.
+- Users can log in and manage inspection reports.
+- A user can upload a surface image from the web app.
+- The robot/camera flow can capture an image, run VLM inspection, and upload
+  the result into the same report system.
+- Reports are associated with the authenticated user.
+- The VLM detects and describes visible surface defects such as cracks and
+  peeling/spalling.
+- Camera images are used for inspection capture only, not for robot navigation.
 - Robot waypoints must come from deterministic CAD/floorplan planning and a
   safety gate.
 
@@ -35,25 +33,32 @@ Prerequisites:
 - npm
 - Optional: Docker Desktop
 
-Run the app locally:
+Backend:
 
 ```powershell
-cd "<repo>\deploy_app"
-npm install
+cd "<project-repo>\deploy_app\backend"
 python -m pip install -r requirements.txt
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+Frontend:
+
+```powershell
+cd "<project-repo>\deploy_app\frontend"
+npm install
 npm run dev
 ```
 
 Local URLs:
 
-- Web: http://localhost:3000
-- API: http://localhost:8000
-- API docs: http://localhost:8000/docs
+- Web: `http://localhost:3000`
+- API: `http://localhost:8000`
+- API docs: `http://localhost:8000/docs`
 
 Docker alternative:
 
 ```powershell
-cd "<repo>\deploy_app"
+cd "<project-repo>\deploy_app"
 docker compose up --build
 ```
 
@@ -63,21 +68,9 @@ Backend variables:
 
 ```text
 INSPECTRA_SECRET_KEY=replace-with-a-long-random-secret
-INSPECTRA_CORS_ORIGINS=http://localhost:3000,https://c2-app-089-production.up.railway.app
+INSPECTRA_CORS_ORIGINS=http://localhost:3000
 INSPECTRA_DATABASE_PATH=backend/data/inspectra.db
 INSPECTRA_UPLOAD_ROOT=backend/uploads
-NOVITA_API_KEY=<your-novita-api-key>
-NOVITA_BASE_URL=https://api.novita.ai/openai/v1
-NOVITA_MODEL=qwen/qwen3-vl-235b-a22b-instruct
-```
-
-Railway backend variables:
-
-```text
-INSPECTRA_SECRET_KEY=<random-long-secret>
-INSPECTRA_CORS_ORIGINS=https://c2-app-089-production.up.railway.app,http://localhost:3000
-INSPECTRA_DATABASE_PATH=/data/inspectra.db
-INSPECTRA_UPLOAD_ROOT=/data/uploads
 NOVITA_API_KEY=<your-novita-api-key>
 NOVITA_BASE_URL=https://api.novita.ai/openai/v1
 NOVITA_MODEL=qwen/qwen3-vl-235b-a22b-instruct
@@ -89,25 +82,45 @@ Frontend variable:
 NEXT_PUBLIC_API_URL=http://localhost:8000/api
 ```
 
-Railway frontend variable:
+Robot / local VLM variables:
 
 ```text
-NEXT_PUBLIC_API_URL=https://inspectra-api-production.up.railway.app/api
+NOVITA_API_KEY=<your-novita-api-key>
+NOVITA_BASE_URL=https://api.novita.ai/openai/v1
+NOVITA_MODEL=qwen/qwen3-vl-235b-a22b-instruct
 ```
 
-Robot upper-planner variables are optional and must not be treated as direct
-robot control:
+Optional upper-planner variable:
 
 ```text
 QWEN_PLANNER_MODEL=Qwen/Qwen3.6-35B-A3B
 ```
 
+The upper planner is only allowed to suggest high-level scan order or planner
+parameters. It must not send direct motor commands or executable waypoints.
+
+## Demo Accounts
+
+Seed/demo accounts used by the MVP:
+
+```text
+admin@inspectra.ai / admin123
+inspector@inspectra.ai / inspect123
+operator@inspectra.ai / operator123
+```
+
 ## Sample API Queries
+
+Set the API base URL:
+
+```powershell
+$API_BASE_URL = "http://localhost:8000/api"
+```
 
 Health check:
 
 ```powershell
-Invoke-RestMethod https://inspectra-api-production.up.railway.app/api/health
+Invoke-RestMethod "$API_BASE_URL/health"
 ```
 
 Login:
@@ -115,7 +128,7 @@ Login:
 ```powershell
 $login = Invoke-RestMethod `
   -Method Post `
-  -Uri https://inspectra-api-production.up.railway.app/api/auth/login `
+  -Uri "$API_BASE_URL/auth/login" `
   -ContentType "application/json" `
   -Body '{"email":"inspector@inspectra.ai","password":"inspect123"}'
 
@@ -126,7 +139,7 @@ List reports for the logged-in user:
 
 ```powershell
 Invoke-RestMethod `
-  -Uri https://inspectra-api-production.up.railway.app/api/reports `
+  -Uri "$API_BASE_URL/reports" `
   -Headers @{ Authorization = "Bearer $token" }
 ```
 
@@ -135,7 +148,7 @@ Upload a local image, run VLM, and save a user-owned report:
 ```powershell
 $imagePath = "<path-to-surface-image>.jpg"
 
-curl.exe -X POST "https://inspectra-api-production.up.railway.app/api/vlm-inspections" `
+curl.exe -X POST "$API_BASE_URL/vlm-inspections" `
   -H "Authorization: Bearer $token" `
   -F "product=Manual surface sample" `
   -F "robot=Web upload" `
@@ -144,10 +157,11 @@ curl.exe -X POST "https://inspectra-api-production.up.railway.app/api/vlm-inspec
   -F "image=@$imagePath;type=image/jpeg"
 ```
 
-Run ESP32-CAM capture, local VLM inspection, and upload report:
+Run ESP32-CAM capture, local VLM inspection, and upload the result to the web
+backend:
 
 ```powershell
-cd "<repo>\surface_inspection_product\ros_robot_control"
+cd "<project-repo>\surface_inspection_product\ros_robot_control"
 $env:PYTHONPATH = ".\ros_ws\src\surface_inspection_robot"
 
 python -m surface_inspection_robot.cli esp32-inspect `
@@ -158,20 +172,20 @@ python -m surface_inspection_robot.cli esp32-inspect `
   --detail low `
   --grid 2 `
   --timeout 30 `
-  --website-url https://inspectra-api-production.up.railway.app `
+  --website-url <BACKEND_API_ORIGIN> `
   --website-email inspector@inspectra.ai `
   --website-password inspect123 `
-  --product "ESP32-CAM wall demo"
+  --product "ESP32-CAM wall demo" `
+  --robot "ESP32-CAM"
 ```
 
 ## Expected User Flow
 
-1. Open the deployed web UI.
-2. Log in with the inspector account.
-3. Go to `Tao luot kiem tra`.
-4. Upload a surface image.
-5. Run VLM inspection.
-6. Open the generated report detail page.
-7. Confirm that the report belongs to the logged-in user and includes source
-   image, segmentation/overlay artifact, result JSON, defect count, confidence,
-   and reviewer note.
+1. Log in with the inspector account.
+2. Create a new inspection.
+3. Upload a surface image or send a robot/camera capture result.
+4. Run VLM inspection.
+5. Open the generated report detail page.
+6. Review the source image, segmentation/overlay artifact, result JSON, defect
+   count, confidence, and reviewer note.
+7. Confirm the report after human review.

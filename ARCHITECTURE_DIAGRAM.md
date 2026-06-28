@@ -62,15 +62,15 @@ CAD/floorplan -> deterministic coverage/path planner -> safety gate -> robot con
 Qwen3.6-35B-A3B may suggest high-level scan order or planner parameters, but it
 must not generate direct motor commands or executable waypoints.
 
-## Deployed Components
+## Components
 
-| Component | Technology | URL / Location |
+| Component | Technology | Role |
 |---|---|---|
-| Web UI | Next.js | https://c2-app-089-production.up.railway.app |
-| Backend API | FastAPI | https://inspectra-api-production.up.railway.app |
+| Web UI | Next.js | Login, dashboard, upload flow, report list, report detail |
+| Backend API | FastAPI | Authentication, authorization, uploads, report APIs |
 | Auth | JWT + roles | `admin`, `inspector`, `operator` |
-| DB | SQLite demo DB | Railway volume path `/data/inspectra.db` |
-| Artifacts | File storage | Railway volume path `/data/uploads` |
+| DB | SQLite demo DB | Users, report metadata, ownership, review state |
+| Artifacts | File storage | Source images, overlays, masks, JSON, HTML report files |
 | VLM provider | Novita | `qwen/qwen3-vl-235b-a22b-instruct` |
 | Robot capture | ESP32-CAM + CLI | `surface_inspection_product/ros_robot_control` |
 | Local VLM pipeline | Python | `surface_inspection_product/vlm_surface_inspection` |
